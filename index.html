@@ -4,43 +4,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>tuban109 </title>
+  <title>tuban109 — Đếm Yêu Chị</title>
   <style>
-    :root{--bg:#0f1724;--card:#0b1220;--accent:#ff5c8a;--muted:#9aa4b2}
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#ff5c8a;--muted:#9aa4b2;--pink:#ff4da6}
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;background:linear-gradient(180deg,#071021 0%,#071a2b 100%);color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
     .wrap{width:100%;max-width:720px;background:rgba(255,255,255,0.03);padding:24px;border-radius:14px;box-shadow:0 6px 30px rgba(2,6,23,0.6);}
     header{display:flex;align-items:center;justify-content:center;margin-bottom:18px}
     header h1{margin:0;font-size:20px;letter-spacing:1px;color:var(--accent)}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:20px;border-radius:12px;text-align:center}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:20px;border-radius:12px;text-align:center;transition:box-shadow 0.4s ease,border 0.3s ease}
+    .card.active{border:2px solid rgba(255,77,166,0.85);box-shadow:0 8px 40px rgba(255,77,166,0.12)}
     .input-row{display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:16px}
     input[type="text"]{flex:1;min-width:0;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:inherit;font-size:16px}
     button{padding:10px 16px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600;cursor:pointer}
     button[disabled]{opacity:0.5;cursor:not-allowed}
-    .heart{font-size:60px;opacity:0.2;transition:transform 0.2s ease, opacity 0.2s ease, text-shadow 0.4s ease;}
+    .accepted-label{display:inline-block;margin-bottom:12px;padding:8px 12px;border-radius:10px;background:rgba(255,77,166,0.06);color:var(--pink);font-weight:600}
+    .heart{font-size:80px;opacity:0.2;transition:transform 0.25s ease, opacity 0.25s ease, text-shadow 0.6s ease;margin-top:6px}
     .heart.glow{opacity:1;text-shadow:0 0 20px #ff6fa8,0 0 40px #ff4081,0 0 80px #ff80ab;}
-    .progress-container{width:100%;height:12px;background:#1e293b;border-radius:8px;overflow:hidden;margin-top:10px;}
-    .progress-bar{height:100%;width:0;background:linear-gradient(90deg,#ff5c8a,#ff80ab,#ffc1d6);transition:width 0.1s linear;}
-    .log{height:260px;overflow:auto;margin-top:12px;padding:12px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:14px;white-space:pre-wrap;text-align:left}
+    .progress-container{width:100%;height:14px;background:#1e293b;border-radius:8px;overflow:hidden;margin-top:14px;}
+    .progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--pink),#ff80ab,#ffc1d6);transition:width 0.15s linear;}
+    .log{height:220px;overflow:auto;margin-top:12px;padding:12px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:14px;white-space:pre-wrap;text-align:left}
     .note{margin-top:8px;color:var(--muted);font-size:13px;text-align:center}
     @keyframes rainbow {0%{color:#ff5c8a;}25%{color:#ff80ab;}50%{color:#ffd1dc;}75%{color:#ff80ab;}100%{color:#ff5c8a;}}
-    .rainbow{animation:rainbow 1s infinite linear;}
+    .rainbow{animation:rainbow 1s infinite linear}
+    @media(max-width:420px){.heart{font-size:56px}.log{height:180px}}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>tuban109</h1>
-    </header><div class="card">
-  <div class="input-row">
+    </header><div id="card" class="card">
+  <div id="inputRow" class="input-row">
     <input id="keyInput" type="text" placeholder="Nhập key..." autocomplete="off" />
     <button id="okBtn">OK</button>
+  </div>
+
+  <!-- Sau khi key hợp lệ: inputRow sẽ ẩn, phần accepted sẽ hiện -->
+  <div id="accepted" style="display:none">
+    <div class="accepted-label">Key xác thực: NhuNgoc</div>
   </div>
 
   <div class="heart" id="heart">💖</div>
   <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
   <div id="log" class="log" aria-live="polite"></div>
-  <div class="note">Chỉ key đúng mới chạy được. Sau khi đếm tới 100% sẽ xuống dòng và dừng.</div>
+  <div class="note">Sau khi đếm tới 100% sẽ xuống dòng và dừng. Nhập đúng key sẽ khóa khu vực nhập.</div>
 </div>
 
   </div>  <script>
@@ -49,6 +57,9 @@
     const log = document.getElementById('log');
     const heart = document.getElementById('heart');
     const progressBar = document.getElementById('progressBar');
+    const inputRow = document.getElementById('inputRow');
+    const accepted = document.getElementById('accepted');
+    const card = document.getElementById('card');
 
     const correctKey = 'NhuNgoc';
 
@@ -59,6 +70,13 @@
       log.scrollTop = log.scrollHeight;
     }
 
+    function enterLockedMode(){
+      // Ẩn input, hiển thị nhãn đã xác thực và đổi viền thành màu hồng
+      inputRow.style.display = 'none';
+      accepted.style.display = 'block';
+      card.classList.add('active');
+    }
+
     function runCount(){
       if(running) return;
       running = true;
@@ -66,12 +84,15 @@
       keyInput.disabled = true;
 
       let i = 1;
-      const speed = 40;
+      const speed = 120; // chậm hơn: 120ms giữa mỗi %
 
       const timer = setInterval(()=>{
+        // hiệu ứng tim: tăng dần, nhẹ nhàng
         heart.style.opacity = Math.min(1, i/100);
-        heart.style.transform = `scale(${1 + i/150})`;
+        heart.style.transform = `scale(${1 + i/180})`;
+        // update progress
         progressBar.style.width = i + '%';
+        // thêm dòng phần trăm (mỗi dòng mới sẽ hiển thị sau nhau)
         log.innerHTML += `<span class='rainbow'>Yêu Chị ${i}%</span>\n`;
         log.scrollTop = log.scrollHeight;
         i++;
@@ -84,7 +105,9 @@
           running = false;
           okBtn.disabled = false;
           keyInput.disabled = false;
-          keyInput.focus();
+          keyInput.value = '';
+          keyInput.blur();
+          // Không tự mở lại input; để người dùng reload nếu muốn chạy lại
         }
       }, speed);
     }
@@ -96,6 +119,7 @@
         return;
       }
       appendLine(`✅ Key hợp lệ! Bắt đầu đếm...`);
+      enterLockedMode();
       runCount();
     });
 
@@ -105,4 +129,4 @@
       }
     });
   </script></body>
-</html>
+  </html>
