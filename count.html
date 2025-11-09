@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>tuban109 — Đếm Yêu Chị</title>
+  <style>
+    :root{--bg:#071021;--card:#0b1220;--pink:#ff4da6}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021,#071a2b);font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#fff}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
+    .panel{width:100%;max-width:720px;background:rgba(255,255,255,0.03);padding:26px;border-radius:14px;text-align:center;position:relative;overflow:hidden;box-shadow:0 12px 36px rgba(2,6,23,0.6)}
+    .title{font-size:20px;color:var(--pink);margin-bottom:6px}
+    .heart{font-size:96px;opacity:0.2;transition:transform .25s ease, opacity .25s ease, text-shadow .5s}
+    .heart.glow{opacity:1;text-shadow:0 0 18px #ff6fa8,0 0 36px #ff4081}
+    .progress{height:12px;background:#0f1724;border-radius:8px;margin:18px 10px;overflow:hidden}
+    .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff5c8a,#ff80ab,#ffc1d6);transition:width .1s linear}
+    .percentText{font-family:monospace;margin-top:8px;font-size:20px}
+    .percentText .rainbow{animation:rainbow 1s linear infinite}
+    @keyframes rainbow{0%{color:#ff5c8a}33%{color:#ff80ab}66%{color:#ffd1dc}100%{color:#ff5c8a}}
+    .notice{color:#cbd5e1;font-size:13px;margin-top:8px}
+    /* fireworks canvas fills panel */
+    #fxCanvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:1}
+    /* content sits above canvas */
+    .content{position:relative;z-index:2}
+    .error{color:#ff8080;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel" id="panel">
+      <!-- canvas cho fireworks -->
+      <canvas id="fxCanvas"></canvas>
+
+      <div class="content" id="content">
+        <div class="title">tuban109 — Đếm Yêu Chị</div>
+        <div id="statusArea">
+          <!-- nếu key không hợp lệ sẽ hiển thị lỗi ở đây -->
+          <div id="error" class="error" style="display:none">Key không hợp lệ. Quay lại trang trước để nhập key.</div>
+          <div id="mainUI" style="display:none">
+            <div id="heart" class="heart">💖</div>
+            <div class="progress"><i id="bar"></i></div>
+            <div class="percentText"><span id="percent" class="rainbow">Yêu Chị 0%</span></div>
+            <div class="notice">Bạn chỉ xem màn đếm. Để chạy lại quay về trang nhập key.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Lấy param key từ URL
+    function getParam(name){
+      const url = new URL(location.href);
+      return url.searchParams.get(name);
+    }
+
+    const CORRECT_KEY = 'NhuNgoc';
+    const providedKey = getParam('key');
+
+    const errorEl = document.getElementById('error');
+    const mainUI = document.getElementById('mainUI');
+    const heart = document.getElementById('heart');
+    const bar = document.getElementById('bar');
+    const percentEl = document.getElementById('percent');
+
+    if(providedKey !== CORRECT_KEY){
+      // key sai -> show error
+      errorEl.style.display = 'block';
+      mainUI.style.display = 'none';
+    } else {
+      errorEl.style.display = 'none';
+      mainUI.style.display = 'block';
+      // bắt đầu đếm và fireworks
+      startCountAndFireworks();
+    }
+
+    function startCountAndFireworks(){
+      let i = 0;
+      const speed = 160; // ms giữa mỗi %, chậm lại để thấy rõ
+      const total = 100;
+
+      const interval = setInterval(()=>{
+        i++;
+        // tim scale + opacity
+        heart.style.opacity = Math.min(1, i/100);
+        heart.style.transform = `scale(${1 + i/220})`;
+        // progress
+        bar.style.width = i + '%';
+        // percent text
+        percentEl.innerText = `Yêu Chị ${i}%`;
+        // soft rainbow class already animates color
+        // mỗi khi % là bội số 10 thì nổ 1 cụm pháo hoa nhẹ
+        if(i % 10 === 0){
+          fireworkBurstAt(Math.random()*window.innerWidth*0.6 + window.innerWidth*0.2);
+        }
+        if(i >= total){
+          clearInterval(interval);
+          heart.classList.add('glow');
+          percentEl.innerText = `Yêu Chị 100% — Hoàn tất`;
+          // final fireworks big
+          setTimeout(()=> {
+            for(let k=0;k<6;k++){
+              setTimeout(()=> fireworkBurstAt(Math.random()*window.innerWidth*0.7 + window.innerWidth*0.15), k*250);
+            }
+          }, 300);
+        }
+      }, speed);
+    }
+
+    /* --- Simple fireworks implementation --- */
+    (function(){
+      const canvas = document.getElementById('fxCanvas');
+      const ctx = canvas.getContext('2d');
+      let W, H, DPR = window.devicePixelRatio || 1;
+
+      function resize(){
+        W = canvas.offsetWidth;
+        H = canvas.offsetHeight;
+        canvas.width = Math.floor(W * DPR);
+        canvas.height = Math.floor(H * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      const particles = [];
+
+      function rnd(min,max){ return Math.random()*(max-min)+min; }
+
+      function firework(x, y, hue, count, power){
+        for(let i=0;i<count;i++){
+          const angle = Math.PI*2 * (i/count);
+          particles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * rnd(0.6, power) * (0.6 + Math.random()*0.8),
+            vy: Math.sin(angle) * rnd(0.6, power) * (0.6 + Math.random()*0.8),
+            life: rnd(60, 120),
+            age: 0,
+            hue: hue + rnd(-20,20),
+            bright: rnd(50,80),
+            size: rnd(1.6, 3.6)
+          });
+        }
+      }
+
+      function fireworkBurstAt(px){
+        const x = px - canvas.getBoundingClientRect().left;
+        const y = rnd(H*0.15, H*0.5);
+        const hue = Math.floor(rnd(320,340));
+        const count = Math.floor(rnd(18,36));
+        const power = rnd(1.6,3.2);
+        firework(x, y, hue, count, power);
+      }
+
+      function updateAndDraw(){
+        ctx.clearRect(0,0,W,H);
+        for(let i=particles.length-1;i>=0;i--){
+          const p = particles[i];
+          p.age++;
+          p.vy += 0.02; // gravity
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.995;
+          p.vy *= 0.995;
+          const lifeRatio = 1 - p.age / p.life;
+          if(lifeRatio <= 0){ particles.splice(i,1); continue; }
+
+          // draw
+          ctx.beginPath();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = `hsla(${p.hue}, 85%, ${p.bright}%, ${lifeRatio})`;
+          ctx.arc(p.x, p.y, p.size * lifeRatio, 0, Math.PI*2);
+          ctx.fill();
+
+          // small trail line
+          ctx.strokeStyle = `hsla(${p.hue},85%,${p.bright}%,${lifeRatio*0.6})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(p.x - p.vx*1.5, p.y - p.vy*1.5);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
+        requestAnimationFrame(updateAndDraw);
+      }
+      updateAndDraw();
+
+      // expose a small function globally
+      window.fireworkBurstAt = fireworkBurstAt;
+    })();
+  </script>
+</body>
+</html>
